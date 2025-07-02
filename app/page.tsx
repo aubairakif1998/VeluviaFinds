@@ -17,7 +17,8 @@ import {
 import Image from "next/image";
 import Link from "next/link";
 import { useState, useEffect } from "react";
-import { featuredProducts, Product } from "../data/products";
+import { getProductsByCategory } from "../lib/productService";
+import type { Product } from "../lib/products";
 
 const navigationItems = [
   { name: "Home Decor", href: "#home-decor", icon: Home },
@@ -83,14 +84,14 @@ function Navigation() {
                 <button
                   key={item.name}
                   onClick={() => scrollToSection(item.href)}
-                  className={`flex items-center space-x-2 px-4 py-2 rounded-full transition-all duration-300 hover:scale-105 group ${
+                  className={`flex items-center space-x-2 px-4 py-2 rounded-full transition-all duration-200 hover:scale-102 group ${
                     scrolled
                       ? "text-gray-700 hover:text-amber-600 hover:bg-amber-50"
                       : "text-white/90 hover:text-amber-300 hover:bg-white/10"
                   }`}
                   style={{ animationDelay: `${index * 100}ms` }}
                 >
-                  <Icon className="h-4 w-4 group-hover:rotate-12 transition-transform duration-300" />
+                  <Icon className="h-4 w-4 group-hover:rotate-6 transition-transform duration-200" />
                   <span className="font-medium">{item.name}</span>
                 </button>
               );
@@ -159,30 +160,58 @@ function ProductCard({ product, index }: { product: Product; index: number }) {
     return stars;
   };
 
+  // Helper to append affiliate tag
+  const getAffiliateLink = (url: string) => {
+    if (url.includes("tag=veluviafinds-20")) return url;
+    if (url.includes("?")) return url + "&tag=veluviafinds-20";
+    return url + "?tag=veluviafinds-20";
+  };
+
+  // Helper to get image URL with fallback
+  const getImageUrl = (images: string[] | undefined | null) => {
+    if (
+      !images ||
+      images.length === 0 ||
+      !images[0] ||
+      images[0].trim() === ""
+    ) {
+      return "/placeholder.svg?height=300&width=300";
+    }
+    return images[0]; // Return first image for the card
+  };
+
   return (
     <Card
-      className="group hover:shadow-2xl transition-all duration-700 border-0 shadow-lg bg-white hover:scale-105 transform-gpu"
+      className="group hover:shadow-xl transition-all duration-300 border-0 shadow-lg bg-white hover:scale-102 transform-gpu"
       style={{ animationDelay: `${index * 150}ms` }}
     >
       <CardContent className="p-0">
-        <div className="relative overflow-hidden rounded-t-lg">
-          <Image
-            src={product.image || "/placeholder.svg"}
-            alt={product.title}
-            width={300}
-            height={300}
-            className="w-full h-64 object-cover group-hover:scale-110 transition-transform duration-700"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-all duration-500" />
-          <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-sm rounded-full p-2 opacity-0 group-hover:opacity-100 transform translate-x-4 group-hover:translate-x-0 transition-all duration-500">
-            <Star className="h-4 w-4 text-amber-600" />
+        <Link href={`/product/${product.id}`} className="block">
+          <div className="relative overflow-hidden rounded-t-lg cursor-pointer">
+            <Image
+              src={getImageUrl(product.images)}
+              alt={product.title}
+              width={250}
+              height={200}
+              className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
+              onError={(e) => {
+                const target = e.target as HTMLImageElement;
+                target.src = "/placeholder.svg?height=300&width=300";
+              }}
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300" />
+            <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-sm rounded-full p-2 opacity-0 group-hover:opacity-100 transform translate-x-2 group-hover:translate-x-0 transition-all duration-300">
+              <Star className="h-4 w-4 text-amber-600" />
+            </div>
           </div>
-        </div>
+        </Link>
         <div className="p-6">
-          <h3 className="font-serif font-semibold text-xl text-gray-900 mb-3 line-clamp-2 group-hover:text-amber-700 transition-colors duration-300">
-            {product.title}
-          </h3>
-          <div className="flex items-center mb-2">
+          <Link href={`/product/${product.id}`}>
+            <h3 className="font-serif font-semibold text-lg text-gray-900 mb-3 line-clamp-2 group-hover:text-amber-700 transition-colors duration-300 cursor-pointer">
+              {product.title}
+            </h3>
+          </Link>
+          <div className="flex items-center mb-3">
             {renderStars(product.rating)}
             <span className="ml-2 text-sm text-gray-500">
               {product.rating.toFixed(1)}
@@ -191,31 +220,41 @@ function ProductCard({ product, index }: { product: Product; index: number }) {
           <div className="mb-4 flex items-end space-x-2">
             {product.discountPrice ? (
               <>
-                <span className="text-2xl font-medium text-gray-400 line-through">
+                <span className="text-lg font-medium text-gray-400 line-through">
                   ${product.price.toFixed(2)}
                 </span>
-                <span className="text-2xl font-bold text-amber-600">
+                <span className="text-xl font-bold text-amber-600">
                   ${product.discountPrice.toFixed(2)}
                 </span>
               </>
             ) : (
-              <span className="text-2xl font-bold text-gray-900">
+              <span className="text-xl font-bold text-gray-900">
                 ${product.price.toFixed(2)}
               </span>
             )}
           </div>
-          <p className="text-gray-600 text-sm mb-6 line-clamp-3 leading-relaxed">
+          <p className="text-gray-600 text-sm mb-4 line-clamp-2 leading-relaxed">
             {product.description}
           </p>
-          <Link
-            href={product.amazonLink}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center justify-center w-full bg-gradient-to-r from-amber-600 via-amber-500 to-yellow-600 hover:from-amber-700 hover:via-amber-600 hover:to-yellow-700 text-white font-semibold py-4 px-6 rounded-xl transition-all duration-500 group/button shadow-lg hover:shadow-xl transform hover:scale-105"
-          >
-            <span className="tracking-wide">View on Amazon</span>
-            <ExternalLink className="ml-3 h-5 w-5 group-hover/button:translate-x-1 group-hover/button:scale-110 transition-all duration-300" />
-          </Link>
+          <div className="space-y-2">
+            <Link href={`/product/${product.id}`}>
+              <Button className="w-full bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800 text-white font-medium py-2 px-4 rounded-lg transition-all duration-300 shadow-md hover:shadow-lg">
+                <span className="tracking-wide">View Details</span>
+                <ExternalLink className="ml-2 h-4 w-4" />
+              </Button>
+            </Link>
+            <Link
+              href={getAffiliateLink(product.amazonLink)}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <Button className="w-full bg-gradient-to-r from-amber-600 via-amber-500 to-yellow-600 hover:from-amber-700 hover:via-amber-600 hover:to-yellow-700 text-white font-medium py-2 px-4 rounded-lg transition-all duration-200 group/button shadow-lg hover:shadow-xl">
+                <span className="tracking-wide">Buy on Amazon</span>
+                <ExternalLink className="ml-2 h-4 w-4 group-hover/button:translate-x-0.5 transition-all duration-200" />
+              </Button>
+            </Link>
+          </div>
         </div>
       </CardContent>
     </Card>
@@ -256,7 +295,7 @@ function CategorySection({
           </div>
           <div className="w-32 h-1 bg-gradient-to-r from-transparent via-amber-600 to-transparent mx-auto rounded-full"></div>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12">
           {products.map((product, productIndex) => (
             <ProductCard
               key={product.id}
@@ -271,6 +310,82 @@ function CategorySection({
 }
 
 export default function VeluviaFindsPage() {
+  const [products, setProducts] = useState<{
+    homeDecor: Product[];
+    kitchen: Product[];
+    jewelry: Product[];
+    accessories: Product[];
+  }>({
+    homeDecor: [],
+    kitchen: [],
+    jewelry: [],
+    accessories: [],
+  });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    getProductsByCategory().then((data) => {
+      setProducts(data);
+      setLoading(false);
+    });
+  }, []);
+
+  if (loading)
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black flex items-center justify-center relative overflow-hidden">
+        {/* Background animated elements */}
+        <div className="absolute inset-0">
+          <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-amber-400/10 rounded-full blur-3xl animate-pulse"></div>
+          <div
+            className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-yellow-400/5 rounded-full blur-3xl animate-pulse"
+            style={{ animationDelay: "2s" }}
+          ></div>
+          <div
+            className="absolute top-1/2 left-1/2 w-32 h-32 bg-amber-300/20 rounded-full blur-2xl animate-pulse"
+            style={{ animationDelay: "1s" }}
+          ></div>
+        </div>
+
+        {/* Loading content */}
+        <div className="relative text-center">
+          <div className="flex items-center justify-center mb-8">
+            <div className="relative">
+              <Sparkles className="h-16 w-16 text-amber-400 animate-spin-slow" />
+              <div className="absolute inset-0 bg-amber-400 rounded-full blur-xl opacity-50 animate-pulse"></div>
+            </div>
+          </div>
+
+          <h1 className="text-4xl md:text-6xl font-serif font-light text-white mb-4 luxury-heading tracking-wide">
+            Veluvia Finds
+          </h1>
+
+          <p className="text-xl text-amber-400 font-semibold tracking-widest uppercase mb-8 animate-pulse">
+            Curating Excellence
+          </p>
+
+          {/* Loading animation */}
+          <div className="flex justify-center space-x-2 mb-6">
+            <div
+              className="w-3 h-3 bg-amber-400 rounded-full animate-bounce"
+              style={{ animationDelay: "0ms" }}
+            ></div>
+            <div
+              className="w-3 h-3 bg-amber-500 rounded-full animate-bounce"
+              style={{ animationDelay: "150ms" }}
+            ></div>
+            <div
+              className="w-3 h-3 bg-yellow-400 rounded-full animate-bounce"
+              style={{ animationDelay: "300ms" }}
+            ></div>
+          </div>
+
+          <p className="text-gray-300 text-lg font-light">
+            Discovering luxury finds for you...
+          </p>
+        </div>
+      </div>
+    );
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
       <Navigation />
@@ -331,7 +446,7 @@ export default function VeluviaFindsPage() {
       <CategorySection
         id="home-decor"
         title="Home Decor"
-        products={featuredProducts.homeDecor}
+        products={products.homeDecor}
         index={0}
         icon={
           <div className="w-12 h-12 bg-gradient-to-br from-amber-600 to-yellow-600 rounded-full flex items-center justify-center shadow-lg group-hover:shadow-xl transition-all duration-500 group-hover:rotate-12">
@@ -344,7 +459,7 @@ export default function VeluviaFindsPage() {
         <CategorySection
           id="kitchen"
           title="Kitchen Elegance"
-          products={featuredProducts.kitchen}
+          products={products.kitchen}
           index={1}
           icon={
             <div className="w-12 h-12 bg-gradient-to-br from-amber-600 to-yellow-600 rounded-full flex items-center justify-center shadow-lg group-hover:shadow-xl transition-all duration-500 group-hover:rotate-12">
@@ -357,7 +472,7 @@ export default function VeluviaFindsPage() {
       <CategorySection
         id="jewelry"
         title="Timeless Jewelry"
-        products={featuredProducts.jewelry}
+        products={products.jewelry}
         index={2}
         icon={
           <div className="w-12 h-12 bg-gradient-to-br from-amber-600 to-yellow-600 rounded-full flex items-center justify-center shadow-lg group-hover:shadow-xl transition-all duration-500 group-hover:rotate-12">
@@ -370,7 +485,7 @@ export default function VeluviaFindsPage() {
         <CategorySection
           id="accessories"
           title="Luxe Accessories"
-          products={featuredProducts.accessories}
+          products={products.accessories}
           index={3}
           icon={
             <div className="w-12 h-12 bg-gradient-to-br from-amber-600 to-yellow-600 rounded-full flex items-center justify-center shadow-lg group-hover:shadow-xl transition-all duration-500 group-hover:rotate-12">
